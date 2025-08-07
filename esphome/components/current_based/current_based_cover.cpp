@@ -309,3 +309,4 @@ void CurrentBasedCover::recompute_position_() {
 
 }  // namespace current_based
 }  // namespace esphome
+}
