@@ -3,6 +3,7 @@
 #include "esphome/core/log.h"
 #include "esphome/core/application.h"
 #include <cfloat>
+#include <cinttypes>
 
 namespace esphome {
 namespace current_based {
@@ -17,6 +18,8 @@ CoverTraits CurrentBasedCover::get_traits() {
   traits.set_supports_position(true);
   traits.set_supports_toggle(true);
   traits.set_is_assumed_state(false);
+
+  traits.set_supports_tilt(this->tilt_duration_ > 0);
   return traits;
 }
 void CurrentBasedCover::control(const CoverCall &call) {
@@ -44,6 +47,25 @@ void CurrentBasedCover::control(const CoverCall &call) {
     } else {
       auto op = pos < this->position ? COVER_OPERATION_CLOSING : COVER_OPERATION_OPENING;
       this->target_position_ = pos;
+      this->start_direction_(op);
+    }
+  }
+  if (call.get_tilt().has_value()) { //moje funkce
+    auto requested_tilt = *call.get_tilt();
+    if (requested_tilt != this->tilt) {
+      CoverOperation op;
+      uint32_t operation_duration_ms;
+      if (requested_tilt < this->tilt) {
+        op = COVER_OPERATION_CLOSING;
+        operation_duration_ms = this->close_duration_;
+      } else {
+        op = COVER_OPERATION_OPENING;
+        operation_duration_ms = this->open_duration_;
+      }
+
+      const auto tilt_change_duration_ms = (requested_tilt - this->tilt) * this->tilt_duration_;
+      const auto new_pos = tilt_change_duration_ms / operation_duration_ms;
+      this->target_position_ += new_pos;
       this->start_direction_(op);
     }
   }
@@ -155,6 +177,11 @@ void CurrentBasedCover::dump_config() {
                 "Start sensing delay: %.1fs\n"
                 "Malfunction detection: %s",
                 this->start_sensing_delay_ / 1e3f, YESNO(this->malfunction_detection_));
+  
+  if (this->tilt_duration_ > 0)
+    ESP_LOGCONFIG(TAG, "  Tilt Duration: %ums", this->tilt_duration_);
+
+  ESP_LOGCONFIG(TAG, "  Activation delay: %" PRIu32 "ms", this->activation_delay_);
 }
 
 float CurrentBasedCover::get_setup_priority() const { return setup_priority::DATA; }
@@ -238,7 +265,7 @@ void CurrentBasedCover::start_direction_(CoverOperation dir) {
   this->stop_prev_trigger_();
   trig->trigger();
   this->prev_command_trigger_ = trig;
-
+  this->remaining_activation_delay_ = this->activation_delay_;
   const auto now = millis();
   this->start_dir_time_ = now;
   this->last_recompute_time_ = now;
@@ -263,8 +290,19 @@ void CurrentBasedCover::recompute_position_() {
   }
 
   const auto now = millis();
-  this->position += dir * (now - this->last_recompute_time_) / action_dur;
+  //this->position += dir * (now - this->last_recompute_time_) / action_dur; //moje
+  const uint32_t step_duration = now - this->last_recompute_time_; //moje
+
+  this->remaining_activation_delay_ -= step_duration;
+  if (this->remaining_activation_delay_ <= 0) {
+    this->remaining_activation_delay_ = 0;
+    
+  this->position += dir * (step_duration) / action_dur; //moje
+
   this->position = clamp(this->position, 0.0F, 1.0F);
+
+  this->tilt += dir * (step_duration) / this->tilt_duration_; //moje
+  this->tilt = clamp(this->tilt, 0.0f, 1.0f); //moje
 
   this->last_recompute_time_ = now;
 }
