@@ -44,6 +44,9 @@ class CurrentBasedCover : public cover::Cover, public Component {
   void set_malfunction_detection(bool malfunction_detection) { this->malfunction_detection_ = malfunction_detection; }
   void set_start_sensing_delay(uint32_t start_sensing_delay) { this->start_sensing_delay_ = start_sensing_delay; }
 
+  void set_tilt_duration(uint32_t tilt_duration_ms) { this->tilt_duration_ = tilt_duration_ms; } //moje
+  void set_activation_delay(uint32_t activation_delay_ms) { this->activation_delay_ = activation_delay_ms; }
+
   Trigger<> *get_malfunction_trigger() const { return this->malfunction_trigger_; }
 
   cover::CoverTraits get_traits() override;
@@ -65,6 +68,9 @@ class CurrentBasedCover : public cover::Cover, public Component {
   void recompute_position_();
 
   Trigger<> *stop_trigger_{new Trigger<>()};
+
+  uint32_t tilt_duration_;
+  uint32_t activation_delay_;
 
   sensor::Sensor *open_sensor_{nullptr};
   Trigger<> *open_trigger_{new Trigger<>()};
@@ -88,6 +94,7 @@ class CurrentBasedCover : public cover::Cover, public Component {
   uint32_t last_recompute_time_{0};
   uint32_t start_dir_time_{0};
   uint32_t last_publish_time_{0};
+  int32_t remaining_activation_delay_{0};
   float target_position_{0};
 
   cover::CoverOperation last_operation_{cover::COVER_OPERATION_OPENING};
