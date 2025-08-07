@@ -24,14 +24,16 @@ CONF_MALFUNCTION_DETECTION = "malfunction_detection"
 CONF_MALFUNCTION_ACTION = "malfunction_action"
 CONF_START_SENSING_DELAY = "start_sensing_delay"
 
+CONF_TILT_DURATION = "tilt_duration"
+CONF_ACTIVATION_DELAY = "activation_delay"
+
 current_based_ns = cg.esphome_ns.namespace("current_based")
 CurrentBasedCover = current_based_ns.class_(
     "CurrentBasedCover", cover.Cover, cg.Component
 )
 
 CONFIG_SCHEMA = (
-    cover.cover_schema(CurrentBasedCover)
-    .extend(
+    cover.cover_schema(CurrentBasedCover).extend(
         {
             cv.Required(CONF_STOP_ACTION): automation.validate_automation(single=True),
             cv.Required(CONF_OPEN_SENSOR): cv.use_id(sensor.Sensor),
@@ -60,6 +62,14 @@ CONFIG_SCHEMA = (
             ),
             cv.Optional(
                 CONF_START_SENSING_DELAY, default="500ms"
+            ): cv.positive_time_period_milliseconds,
+
+            cv.Optional(
+            CONF_TILT_DURATION, default=0
+            ): cv.positive_time_period_milliseconds,
+
+            cv.Optional(
+                CONF_ACTIVATION_DELAY, default="0s"
             ): cv.positive_time_period_milliseconds,
         }
     )
@@ -126,3 +136,6 @@ async def to_code(config):
             var.get_malfunction_trigger(), [], malfunction_action
         )
     cg.add(var.set_start_sensing_delay(config[CONF_START_SENSING_DELAY]))
+
+    cg.add(var.set_tilt_duration(config[CONF_TILT_DURATION]))
+    cg.add(var.set_activation_delay(config[CONF_ACTIVATION_DELAY]))
